@@ -1,10 +1,27 @@
 # PDF Metric Extractor — Databricks App
 
-Upload a PDF (typically a quarterly/annual financial report), list the metrics
-you want, and the app returns each value **together with proof**: the exact
-spot in the PDF where the value was read, highlighted on a rendering of the
-page. You can also download the PDF with the highlights baked in as real
-annotations, and the results as CSV.
+Upload one or more PDFs (typically quarterly/annual financial reports), list
+the metrics you want, and the app collects every value into one table —
+**company, report, year, metric, value** — where each row comes **with
+proof**: the exact spot in the source PDF where the value was read,
+highlighted on a rendering of the page. Company and year are guessed per file
+(editable). You can also download each PDF with the highlights baked in as
+real annotations, and the whole table as CSV.
+
+Adding more reports later and re-running only processes the new files — the
+table accumulates across runs.
+
+## Try it
+
+`samples/make_ferd_demo.py` generates five demo annual-report extracts
+(Ferd, the Norwegian family office, 2021–2025) carrying Ferd's real published
+"verdijustert egenkapital" figures. Upload all five, enter
+`Verdijustert egenkapital` as the metric, and you get the full time series
+with per-year evidence:
+
+```bash
+python samples/make_ferd_demo.py   # writes samples/out/*.pdf
+```
 
 ## How it works
 
