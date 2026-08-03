@@ -1,0 +1,13 @@
+command: ["streamlit", "run", "app.py"]
+
+env:
+  - name: "STREAMLIT_BROWSER_GATHER_USAGE_STATS"
+    value: "false"
+
+# Recommended: bind a Model Serving endpoint as an app resource with the
+# resource key "serving-endpoint" (App -> Edit -> Resources), then uncomment
+# the lines below. Binding grants the app's service principal CAN QUERY on
+# the endpoint automatically.
+#
+#  - name: "SERVING_ENDPOINT"
+#    valueFrom: "serving-endpoint"
