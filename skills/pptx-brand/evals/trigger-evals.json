@@ -1,0 +1,22 @@
+[
+  {"query": "lag en presentasjon til kundemøtet med Statsbygg neste uke om internkontroll, må være i BDO-malen", "should_trigger": true},
+  {"query": "trenger et deck på ca 10 slides til tilbudet vårt på revisjon for Møller-gruppen, skal se BDO ut", "should_trigger": true},
+  {"query": "kan du sjekke om denne følger BDO-profilen? ~/Downloads/tilbud_bergheim_v3.pptx", "should_trigger": true},
+  {"query": "slides til partnermøtet på fredag som oppsummerer hovedfunnene fra BA-analysen", "should_trigger": true},
+  {"query": "pitch deck for CSRD-tjenestene våre, 6 slides, norsk", "should_trigger": true},
+  {"query": "gjør om dette notatet til en presentasjon vi kan bruke eksternt mot kunden", "should_trigger": true},
+  {"query": "make a BDO-branded powerpoint about our technology advisory services, english, 8 slides", "should_trigger": true},
+  {"query": "presentasjonen fra i går ser rar ut, fargene stemmer ikke helt med profilen vår – kan du fikse den?", "should_trigger": true},
+  {"query": "lag agenda- og oppsummeringsslides til workshopen med Trondheim kommune i morgen", "should_trigger": true},
+  {"query": "kvartalspresentasjon for BA-teamet, tallene ligger i q2_tall.xlsx på skrivebordet", "should_trigger": true},
+  {"query": "hva står i denne pptx-en? bare gi meg teksten som punktliste", "should_trigger": false},
+  {"query": "lag en bursdagsinvitasjon i powerpoint til datteren min som fyller 8, gjerne med enhjørninger", "should_trigger": false},
+  {"query": "skriv tilbudsbrevet til Bergheim Entreprenør som Word-dokument med BDO-branding", "should_trigger": false},
+  {"query": "lag en HTML-rapport i BDO-stil med funnene fra kundeanalysen", "should_trigger": false},
+  {"query": "hvilke farger har BDO-profilen? trenger hex-kodene til en figur jeg lager i Excel", "should_trigger": false},
+  {"query": "slå sammen disse to pptx-filene til én og behold rekkefølgen", "should_trigger": false},
+  {"query": "lag slides til foredraget mitt på NTNU om maskinlæring – privat greie, ikke jobb, gjerne litt leken stil", "should_trigger": false},
+  {"query": "oversett speaker notes i denne presentasjonen til engelsk, ikke rør slidene", "should_trigger": false},
+  {"query": "design et logoforslag til det interne bærekraftsinitiativet vårt", "should_trigger": false},
+  {"query": "hva er egentlig beste praksis for gode konsulentpresentasjoner? bare nysgjerrig", "should_trigger": false}
+]

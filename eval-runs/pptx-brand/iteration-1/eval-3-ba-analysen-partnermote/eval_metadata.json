@@ -1,0 +1,13 @@
+{
+  "eval_id": 3,
+  "eval_name": "ba-analysen-partnermote",
+  "prompt": "Vi har lansert BA-analysen 2026. Lag 5 slides til partnermøtet som oppsummerer hovedfunnene: (1) omsetningsvekst i bygg- og anleggsnæringen på 4,2 %, men marginpress – driftsmargin ned fra 3,8 % til 3,1 %; (2) konkurser opp 18 % siste år, særlig blant underentreprenører; (3) 34 % av selskapene bruker nå AI i prosjektering; (4) anbefaling: tettere likviditetsoppfølging hos utsatte kunder. Avslutt med hva funnene betyr for BDOs rådgivningsarbeid. BDO-profil. Lagre som ba2026_partner.pptx.",
+  "assertions": [
+    "Filen ba2026_partner.pptx finnes og er en gyldig pptx",
+    "check_brand.py: slide_size, fonts, colors, scheme_usage og placeholders er PASS",
+    "Dekket har nøyaktig 5 slides",
+    "Nøkkeltallene 4,2, 18 og 34 forekommer i slideteksten",
+    "Siste slide handler om konsekvenser for BDOs rådgivning",
+    "Ingen slide er kun tittel + kulepunkter uten visuelt element (tall-callouts, graf, ikon eller flate)"
+  ]
+}

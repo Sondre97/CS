@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+node_modules/
+.DS_Store
+# Tunge mellomprodukter fra eval-kjøringer (behold pptx, json, md, html)
+eval-runs/**/slide-*.jpg
+eval-runs/**/slide-*.png
+eval-runs/**/*.pdf
+eval-runs/**/thumbnails*.jpg

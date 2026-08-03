@@ -1,0 +1,16 @@
+{
+  "eval_id": 1,
+  "eval_name": "kundemote-csrd",
+  "prompt": "Lag en BDO-presentasjon på 6–8 slides til et førstemøte med Bergheim Entreprenør AS (mellomstor byggentreprenør, ca. 450 MNOK omsetning) om bærekraftsrapportering og CSRD. Målet er å vise at BDO forstår situasjonen deres og hvordan vi kan hjelpe. Ta med agenda, kort om kravbildet (CSRD/ESRS og terskelverdier), hva det betyr konkret for dem, vår tilnærming i tre faser, og neste steg. Lagre som bergheim_csrd.pptx.",
+  "assertions": [
+    "Filen bergheim_csrd.pptx finnes og er en gyldig pptx som kan åpnes",
+    "check_brand.py: slide_size er PASS (16:9)",
+    "check_brand.py: fonts er PASS (kun Trebuchet MS/Bliss/temafonter)",
+    "check_brand.py: colors er PASS (alle farger på BDO-paletten, tint/skygge eller gråtoner)",
+    "check_brand.py: scheme_usage og placeholders er PASS",
+    "Dekket har mellom 6 og 8 slides",
+    "Tittelsliden inneholder kundenavnet Bergheim",
+    "Det finnes en agenda-slide",
+    "Teksten nevner CSRD og en tilnærming i tre faser"
+  ]
+}
