@@ -1,0 +1,24 @@
+{
+  "skill_name": "SKILL-NAVN",
+  "description": "Golden set for SKILL-NAVN. Kjøres med og uten skill (eller gammel mot ny versjon). Forventninger graderes primært med kode – se skill-evaluator/references/metodikk.md.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "kort-beskrivende-navn",
+      "prompt": "Realistisk oppgave slik en bruker faktisk ville skrevet den – med filnavn, tall, kundenavn og kontekst. Ikke abstrakt («lag en presentasjon»), men konkret («lag 6 slides til førstemøtet med X om Y, lagre som z.pptx»).",
+      "expected_output": "Én setning om hva en god leveranse er",
+      "files": [],
+      "expectations": [
+        "Etterprøvbar påstand om leveransens TILSTAND (fil finnes, består sjekk X, inneholder tall Y)",
+        "Diskriminerende påstand – noe baseline uten skill typisk IKKE får til",
+        "Minst én kant-sak-forventning (tom input, tvetydighet, grense-verdi)"
+      ]
+    }
+  ],
+  "_notes": [
+    "3–10 oppgaver. Start med 3 kjørbare i dag fremfor 10 perfekte om tre uker.",
+    "Minst én oppgave skal være en kant-sak, og minst én skal komme fra en virkelig feil når skillen har vært i bruk.",
+    "Subjektive kvaliteter (stil, skjønn) hører ikke hjemme i expectations – de vurderes av menneske/dommer.",
+    "Kjør hver oppgave minst 3 ganger per konfigurasjon; rapporter snitt ± stddev og pass^k."
+  ]
+}

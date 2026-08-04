@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Filen q2_status_radgivning.pptx finnes og er en gyldig pptx",
+      "passed": true,
+      "evidence": "q2_status_radgivning.pptx åpnet med python-pptx"
+    },
+    {
+      "text": "check_brand.py: slide_size, fonts, colors, scheme_usage og placeholders er PASS",
+      "passed": true,
+      "evidence": "slide_size=PASS, fonts=PASS, colors=PASS, scheme_usage=PASS, placeholders=PASS"
+    },
+    {
+      "text": "Dekket har nøyaktig 5 slides",
+      "passed": true,
+      "evidence": "5 slides"
+    },
+    {
+      "text": "Dekket inneholder minst én native PowerPoint-graf (chart_count >= 1), ikke et bilde av en graf",
+      "passed": true,
+      "evidence": "chart_count=2"
+    },
+    {
+      "text": "Tallene 182 og 78 forekommer i slideteksten",
+      "passed": true,
+      "evidence": "182=True, 78=True"
+    },
+    {
+      "text": "De tre Q3-prioriteringene er med (rekruttering, CSRD-team, utfakturering)",
+      "passed": true,
+      "evidence": "rekrutter=ja, csrd=ja, utfakturering=ja"
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

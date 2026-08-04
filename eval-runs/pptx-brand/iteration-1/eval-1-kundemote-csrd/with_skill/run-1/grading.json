@@ -1,0 +1,55 @@
+{
+  "expectations": [
+    {
+      "text": "Filen bergheim_csrd.pptx finnes og er en gyldig pptx som kan åpnes",
+      "passed": true,
+      "evidence": "bergheim_csrd.pptx åpnet med python-pptx"
+    },
+    {
+      "text": "check_brand.py: slide_size er PASS (16:9)",
+      "passed": true,
+      "evidence": "check_brand slide_size: PASS – 16:9 (13.33\" x 7.50\")"
+    },
+    {
+      "text": "check_brand.py: fonts er PASS (kun Trebuchet MS/Bliss/temafonter)",
+      "passed": true,
+      "evidence": "check_brand fonts: PASS – Kun Trebuchet MS / Bliss / temafonter i innholdet"
+    },
+    {
+      "text": "check_brand.py: colors er PASS (alle farger på BDO-paletten, tint/skygge eller gråtoner)",
+      "passed": true,
+      "evidence": "check_brand colors: PASS – Alle 8 eksplisitte farger er pa paletten eller noytrale (5 rene palettfarger)"
+    },
+    {
+      "text": "check_brand.py: scheme_usage og placeholders er PASS",
+      "passed": true,
+      "evidence": "scheme_usage=PASS, placeholders=PASS"
+    },
+    {
+      "text": "Dekket har mellom 6 og 8 slides",
+      "passed": true,
+      "evidence": "7 slides"
+    },
+    {
+      "text": "Tittelsliden inneholder kundenavnet Bergheim",
+      "passed": true,
+      "evidence": "Slide 1-tekst: 'BDO FØRSTEMØTE · AUGUST 2026 Bærekraftsrapportering og CSRD Fra krav til konkurransekraft for Bergheim Entreprenør AS BD'"
+    },
+    {
+      "text": "Det finnes en agenda-slide",
+      "passed": true,
+      "evidence": "Agenda på slide [2]"
+    },
+    {
+      "text": "Teksten nevner CSRD og en tilnærming i tre faser",
+      "passed": true,
+      "evidence": "csrd=True, faser=True"
+    }
+  ],
+  "summary": {
+    "passed": 9,
+    "failed": 0,
+    "total": 9,
+    "pass_rate": 1.0
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "skill_name": "pptx-brand",
+  "description": "Golden set for pptx-brand. Kjøres med og uten skill (baseline). Forventningene graderes med scripts/check_brand.py --json, markitdown-tekstdump og slidetelling – se skill-evaluator for prosessen.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "kundemote-csrd",
+      "prompt": "Lag en BDO-presentasjon på 6–8 slides til et førstemøte med Bergheim Entreprenør AS (mellomstor byggentreprenør, ca. 450 MNOK omsetning) om bærekraftsrapportering og CSRD. Målet er å vise at BDO forstår situasjonen deres og hvordan vi kan hjelpe. Ta med agenda, kort om kravbildet (CSRD/ESRS og terskelverdier), hva det betyr konkret for dem, vår tilnærming i tre faser, og neste steg. Lagre som bergheim_csrd.pptx.",
+      "expected_output": "Ferdig .pptx i BDO-profil med 6–8 slides som består merkevaresjekken",
+      "files": [],
+      "expectations": [
+        "Filen bergheim_csrd.pptx finnes og er en gyldig pptx som kan åpnes",
+        "check_brand.py: slide_size er PASS (16:9)",
+        "check_brand.py: fonts er PASS (kun Trebuchet MS/Bliss/temafonter)",
+        "check_brand.py: colors er PASS (alle farger på BDO-paletten, tint/skygge eller gråtoner)",
+        "check_brand.py: scheme_usage og placeholders er PASS",
+        "Dekket har mellom 6 og 8 slides",
+        "Tittelsliden inneholder kundenavnet Bergheim",
+        "Det finnes en agenda-slide",
+        "Teksten nevner CSRD og en tilnærming i tre faser"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "kvartalsstatus-radgivning",
+      "prompt": "Lag en kvartalspresentasjon (5 slides) for forretningsområdet Rådgivning til internt ledermøte i BDO. Tall for Q2: omsetning 182 MNOK (budsjett 175), snitt timepris 1 480 kr, utfaktureringsgrad 78 %, 12 nyansettelser, sykefravær 3,1 %. Tilsvarende Q1: 164 MNOK, 1 455 kr, 74 %, 8 nyansettelser, 3,4 %. Vis utviklingen med minst én graf i BDO-farger, og avslutt med de tre viktigste prioriteringene for Q3: rekruttering av seniorer, etablere CSRD-team, utfakturering over 80 %. Lagre som q2_status_radgivning.pptx.",
+      "expected_output": "Ferdig .pptx i BDO-profil med 5 slides og minst én native graf i BDO-farger",
+      "files": [],
+      "expectations": [
+        "Filen q2_status_radgivning.pptx finnes og er en gyldig pptx",
+        "check_brand.py: slide_size, fonts, colors, scheme_usage og placeholders er PASS",
+        "Dekket har nøyaktig 5 slides",
+        "Dekket inneholder minst én native PowerPoint-graf (chart_count >= 1), ikke et bilde av en graf",
+        "Tallene 182 og 78 forekommer i slideteksten",
+        "De tre Q3-prioriteringene er med (rekruttering, CSRD-team, utfakturering)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "ba-analysen-partnermote",
+      "prompt": "Vi har lansert BA-analysen 2026. Lag 5 slides til partnermøtet som oppsummerer hovedfunnene: (1) omsetningsvekst i bygg- og anleggsnæringen på 4,2 %, men marginpress – driftsmargin ned fra 3,8 % til 3,1 %; (2) konkurser opp 18 % siste år, særlig blant underentreprenører; (3) 34 % av selskapene bruker nå AI i prosjektering; (4) anbefaling: tettere likviditetsoppfølging hos utsatte kunder. Avslutt med hva funnene betyr for BDOs rådgivningsarbeid. BDO-profil. Lagre som ba2026_partner.pptx.",
+      "expected_output": "Ferdig .pptx i BDO-profil med 5 slides som løfter nøkkeltallene visuelt",
+      "files": [],
+      "expectations": [
+        "Filen ba2026_partner.pptx finnes og er en gyldig pptx",
+        "check_brand.py: slide_size, fonts, colors, scheme_usage og placeholders er PASS",
+        "Dekket har nøyaktig 5 slides",
+        "Nøkkeltallene 4,2, 18 og 34 forekommer i slideteksten",
+        "Siste slide handler om konsekvenser for BDOs rådgivning",
+        "Ingen slide er kun tittel + kulepunkter uten visuelt element (tall-callouts, graf, ikon eller flate)"
+      ]
+    }
+  ]
+}

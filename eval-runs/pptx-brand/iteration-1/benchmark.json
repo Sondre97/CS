@@ -1,0 +1,393 @@
+{
+  "metadata": {
+    "skill_name": "pptx-brand",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "claude-fable-5",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-08-04T18:51:20Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Filen bergheim_csrd.pptx finnes og er en gyldig pptx som kan åpnes",
+          "passed": true,
+          "evidence": "bergheim_csrd.pptx åpnet med python-pptx"
+        },
+        {
+          "text": "check_brand.py: slide_size er PASS (16:9)",
+          "passed": true,
+          "evidence": "check_brand slide_size: PASS – 16:9 (13.33\" x 7.50\")"
+        },
+        {
+          "text": "check_brand.py: fonts er PASS (kun Trebuchet MS/Bliss/temafonter)",
+          "passed": true,
+          "evidence": "check_brand fonts: PASS – Kun Trebuchet MS / Bliss / temafonter i innholdet"
+        },
+        {
+          "text": "check_brand.py: colors er PASS (alle farger på BDO-paletten, tint/skygge eller gråtoner)",
+          "passed": true,
+          "evidence": "check_brand colors: PASS – Alle 8 eksplisitte farger er pa paletten eller noytrale (5 rene palettfarger)"
+        },
+        {
+          "text": "check_brand.py: scheme_usage og placeholders er PASS",
+          "passed": true,
+          "evidence": "scheme_usage=PASS, placeholders=PASS"
+        },
+        {
+          "text": "Dekket har mellom 6 og 8 slides",
+          "passed": true,
+          "evidence": "7 slides"
+        },
+        {
+          "text": "Tittelsliden inneholder kundenavnet Bergheim",
+          "passed": true,
+          "evidence": "Slide 1-tekst: 'BDO FØRSTEMØTE · AUGUST 2026 Bærekraftsrapportering og CSRD Fra krav til konkurransekraft for Bergheim Entreprenør AS BD'"
+        },
+        {
+          "text": "Det finnes en agenda-slide",
+          "passed": true,
+          "evidence": "Agenda på slide [2]"
+        },
+        {
+          "text": "Teksten nevner CSRD og en tilnærming i tre faser",
+          "passed": true,
+          "evidence": "csrd=True, faser=True"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Filen q2_status_radgivning.pptx finnes og er en gyldig pptx",
+          "passed": true,
+          "evidence": "q2_status_radgivning.pptx åpnet med python-pptx"
+        },
+        {
+          "text": "check_brand.py: slide_size, fonts, colors, scheme_usage og placeholders er PASS",
+          "passed": true,
+          "evidence": "slide_size=PASS, fonts=PASS, colors=PASS, scheme_usage=PASS, placeholders=PASS"
+        },
+        {
+          "text": "Dekket har nøyaktig 5 slides",
+          "passed": true,
+          "evidence": "5 slides"
+        },
+        {
+          "text": "Dekket inneholder minst én native PowerPoint-graf (chart_count >= 1), ikke et bilde av en graf",
+          "passed": true,
+          "evidence": "chart_count=2"
+        },
+        {
+          "text": "Tallene 182 og 78 forekommer i slideteksten",
+          "passed": true,
+          "evidence": "182=True, 78=True"
+        },
+        {
+          "text": "De tre Q3-prioriteringene er med (rekruttering, CSRD-team, utfakturering)",
+          "passed": true,
+          "evidence": "rekrutter=ja, csrd=ja, utfakturering=ja"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Filen ba2026_partner.pptx finnes og er en gyldig pptx",
+          "passed": true,
+          "evidence": "ba2026_partner.pptx åpnet med python-pptx"
+        },
+        {
+          "text": "check_brand.py: slide_size, fonts, colors, scheme_usage og placeholders er PASS",
+          "passed": true,
+          "evidence": "slide_size=PASS, fonts=PASS, colors=PASS, scheme_usage=PASS, placeholders=PASS"
+        },
+        {
+          "text": "Dekket har nøyaktig 5 slides",
+          "passed": true,
+          "evidence": "5 slides"
+        },
+        {
+          "text": "Nøkkeltallene 4,2, 18 og 34 forekommer i slideteksten",
+          "passed": true,
+          "evidence": "{'4,2': True, '18': True, '34': True}"
+        },
+        {
+          "text": "Siste slide handler om konsekvenser for BDOs rådgivning",
+          "passed": true,
+          "evidence": "Siste slide-tekst: 'BA-ANALYSEN 2026  ·  BETYDNING FOR BDO Funnene peker ut tre satsinger for rådgivningen For BDO er analysen mer enn en st'"
+        },
+        {
+          "text": "Ingen slide er kun tittel + kulepunkter uten visuelt element (tall-callouts, graf, ikon eller flate)",
+          "passed": true,
+          "evidence": "Alle slides har visuelt element eller stort tall-callout"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.7778,
+        "passed": 7,
+        "failed": 2,
+        "total": 9,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Filen bergheim_csrd.pptx finnes og er en gyldig pptx som kan åpnes",
+          "passed": true,
+          "evidence": "bergheim_csrd.pptx åpnet med python-pptx"
+        },
+        {
+          "text": "check_brand.py: slide_size er PASS (16:9)",
+          "passed": true,
+          "evidence": "check_brand slide_size: PASS – 16:9 (13.33\" x 7.50\")"
+        },
+        {
+          "text": "check_brand.py: fonts er PASS (kun Trebuchet MS/Bliss/temafonter)",
+          "passed": false,
+          "evidence": "check_brand fonts: FAIL – 1 ikke-godkjente fonter i bruk (tillatt: Trebuchet MS, Bliss)"
+        },
+        {
+          "text": "check_brand.py: colors er PASS (alle farger på BDO-paletten, tint/skygge eller gråtoner)",
+          "passed": false,
+          "evidence": "check_brand colors: WARN – 1 nesten-palettfarger (feilhusket hex?) - bytt til eksakt verdi"
+        },
+        {
+          "text": "check_brand.py: scheme_usage og placeholders er PASS",
+          "passed": true,
+          "evidence": "scheme_usage=PASS, placeholders=PASS"
+        },
+        {
+          "text": "Dekket har mellom 6 og 8 slides",
+          "passed": true,
+          "evidence": "7 slides"
+        },
+        {
+          "text": "Tittelsliden inneholder kundenavnet Bergheim",
+          "passed": true,
+          "evidence": "Slide 1-tekst: 'BDO FØRSTEMØTE  |  BÆREKRAFT OG RAPPORTERING Bærekraftsrapportering og CSRD Fra krav til konkurransekraft i bygg og anle'"
+        },
+        {
+          "text": "Det finnes en agenda-slide",
+          "passed": true,
+          "evidence": "Agenda på slide [2]"
+        },
+        {
+          "text": "Teksten nevner CSRD og en tilnærming i tre faser",
+          "passed": true,
+          "evidence": "csrd=True, faser=True"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8333,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Filen q2_status_radgivning.pptx finnes og er en gyldig pptx",
+          "passed": true,
+          "evidence": "q2_status_radgivning.pptx åpnet med python-pptx"
+        },
+        {
+          "text": "check_brand.py: slide_size, fonts, colors, scheme_usage og placeholders er PASS",
+          "passed": false,
+          "evidence": "slide_size=PASS, fonts=FAIL, colors=WARN, scheme_usage=PASS, placeholders=PASS"
+        },
+        {
+          "text": "Dekket har nøyaktig 5 slides",
+          "passed": true,
+          "evidence": "5 slides"
+        },
+        {
+          "text": "Dekket inneholder minst én native PowerPoint-graf (chart_count >= 1), ikke et bilde av en graf",
+          "passed": true,
+          "evidence": "chart_count=3"
+        },
+        {
+          "text": "Tallene 182 og 78 forekommer i slideteksten",
+          "passed": true,
+          "evidence": "182=True, 78=True"
+        },
+        {
+          "text": "De tre Q3-prioriteringene er med (rekruttering, CSRD-team, utfakturering)",
+          "passed": true,
+          "evidence": "rekrutter=ja, csrd=ja, utfakturering=ja"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8333,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Filen ba2026_partner.pptx finnes og er en gyldig pptx",
+          "passed": true,
+          "evidence": "ba2026_partner.pptx åpnet med python-pptx"
+        },
+        {
+          "text": "check_brand.py: slide_size, fonts, colors, scheme_usage og placeholders er PASS",
+          "passed": false,
+          "evidence": "slide_size=PASS, fonts=FAIL, colors=FAIL, scheme_usage=FAIL, placeholders=PASS"
+        },
+        {
+          "text": "Dekket har nøyaktig 5 slides",
+          "passed": true,
+          "evidence": "5 slides"
+        },
+        {
+          "text": "Nøkkeltallene 4,2, 18 og 34 forekommer i slideteksten",
+          "passed": true,
+          "evidence": "{'4,2': True, '18': True, '34': True}"
+        },
+        {
+          "text": "Siste slide handler om konsekvenser for BDOs rådgivning",
+          "passed": true,
+          "evidence": "Siste slide-tekst: 'BA-ANALYSEN 2026 · IMPLIKASJONER FOR BDO Hva funnene betyr for BDOs rådgivningsarbeid BDO BDO | BA-analysen 2026 · Partn'"
+        },
+        {
+          "text": "Ingen slide er kun tittel + kulepunkter uten visuelt element (tall-callouts, graf, ikon eller flate)",
+          "passed": true,
+          "evidence": "Alle slides har visuelt element eller stort tall-callout"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.8148,
+        "stddev": 0.032,
+        "min": 0.7778,
+        "max": 0.8333
+      },
+      "time_seconds": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.19",
+      "time_seconds": "+0.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": [
+    "GYLDIGHET: 1 kjøring per oppgave per konfigurasjon (n=1), ikke 3. Resultatene indikerer retning, men gir ikke pålitelighetstall (pass^k) – akseptgaten i skill-evaluator krever minst 3 kjøringer før deling.",
+    "KOSTNAD IKKE MÅLT: 5 av 6 eksekverende agenter ble avbrutt av en sesjonsgrense etter at .pptx-filen var skrevet, men før de rapporterte tokens/tid. Tallene for tid og tokens er derfor 0 (= ikke fanget), ikke målte nullverdier. Den ene kjøringen med telemetri (eval-2 uten skill) brukte 102 752 tokens på 787 sekunder.",
+    "AVBRUTT UNDER QA: Fordi agentene ble avbrutt under sin siste visuelle QA-runde, er dekkene gradert i den tilstanden de forelå. Kode-graderte forventninger (merkevare, antall slides, innhold) er upåvirket; sluttpuss av layout kan mangle i enkelte deck.",
+    "Med skill: alle tre deck er 7 PASS / 0 WARN / 0 FAIL i check_brand.py. Uten skill: alle tre deck har minst én FAIL.",
+    "Hyppigste baseline-feil er font: alle tre baseline-deck feiler fonts-sjekken. eval-1 og eval-2 brukte Arial gjennomgående (127 og 98 forekomster); eval-3 traff Trebuchet MS på 77 forekomster, men lot 4 Arial-referanser stå igjen. Uten skillen kjenner ikke modellen Office-typografien i BDO-profilen, og selv når den gjetter riktig blir det inkonsistent.",
+    "Fargedrift fra hukommelse: alle tre baseline-deck brukte #ED1A3B som 'BDO-rød' mot fasit #E81A3B (44, 23 og 21 forekomster), og eval-2 brukte #2E2E38 som tekstfarge mot #333333. Avviket er 5 i én kanal – usynlig for øyet i gjennomgang, men feil merkevare i hver eneste fil. Denne feilklassen motiverte at check_brand.py fikk en egen 'nesten-palettfarge'-advarsel i denne iterasjonen.",
+    "eval-3 uten skill feilet i tillegg colors (#FF5A70 og #FFE1E6 – oppdiktede lyse rødtoner utenfor paletten) og scheme_usage (chart2 refererer accent1 i et deck uten BDO-tema, slik at PowerPoint ville rendret grafserien Office-blå). Scheme-feilen er den alvorligste fordi den ikke er synlig i genereringskoden – fargen ser riktig ut helt til filen åpnes hos mottaker.",
+    "Assertion-kvalitet: forventningen 'filen finnes og er gyldig pptx' passerte i alle seks kjøringer og diskriminerer ikke – erstattes i iterasjon 2 med en strengere strukturell sjekk.",
+    "Med-skill-deckene skrev et ekte BDO-tema (accent1=E81A3B, temafont Trebuchet MS), ikke bare eksplisitte farger. Det er sterkere enn skillen eksplisitt ber om, og bør løftes inn i SKILL.md som anbefalt praksis for genererte deck."
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "kvartalsstatus-radgivning",
+  "prompt": "Lag en kvartalspresentasjon (5 slides) for forretningsområdet Rådgivning til internt ledermøte i BDO. Tall for Q2: omsetning 182 MNOK (budsjett 175), snitt timepris 1 480 kr, utfaktureringsgrad 78 %, 12 nyansettelser, sykefravær 3,1 %. Tilsvarende Q1: 164 MNOK, 1 455 kr, 74 %, 8 nyansettelser, 3,4 %. Vis utviklingen med minst én graf i BDO-farger, og avslutt med de tre viktigste prioriteringene for Q3: rekruttering av seniorer, etablere CSRD-team, utfakturering over 80 %. Lagre som q2_status_radgivning.pptx.",
+  "assertions": [
+    "Filen q2_status_radgivning.pptx finnes og er en gyldig pptx",
+    "check_brand.py: slide_size, fonts, colors, scheme_usage og placeholders er PASS",
+    "Dekket har nøyaktig 5 slides",
+    "Dekket inneholder minst én native PowerPoint-graf (chart_count >= 1), ikke et bilde av en graf",
+    "Tallene 182 og 78 forekommer i slideteksten",
+    "De tre Q3-prioriteringene er med (rekruttering, CSRD-team, utfakturering)"
+  ]
+}
