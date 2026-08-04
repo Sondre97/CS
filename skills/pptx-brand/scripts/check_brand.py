@@ -25,9 +25,14 @@ Sjekker:
 
 import json
 import re
+import signal
 import sys
 import zipfile
 from fractions import Fraction
+
+# Ufarlig ved `... | head`: avslutt stille i stedet for BrokenPipeError-traceback
+if hasattr(signal, "SIGPIPE"):
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 # Fasit fra bdo-design (offisiell PPT-mal, nov. 2023)
 BRAND_COLORS = {
@@ -98,16 +103,25 @@ def is_tint_or_shade(rgb, brand_rgb, tol=8):
 
 
 def classify_color(hexval):
+    """Returnerer (klasse, referansefarge). Klasser: brand, neutral, near, tint, violation.
+
+    "near" = innenfor +-8 per kanal av en palettfarge uten aa vaere eksakt -
+    typisk en feilhusket hex (f.eks. ED1A3B for E81A3B). Teller ikke som brudd,
+    men rapporteres saa den kan rettes til eksakt verdi.
+    """
     hexval = hexval.upper()
     if hexval in BRAND_COLORS:
-        return "brand"
+        return "brand", hexval
     rgb = hex_to_rgb(hexval)
     if is_neutral(rgb):
-        return "neutral"
+        return "neutral", None
+    for bh in BRAND_COLORS:
+        if all(abs(c - b) <= 8 for c, b in zip(rgb, hex_to_rgb(bh))):
+            return "near", bh
     for bh in BRAND_COLORS:
         if is_tint_or_shade(rgb, hex_to_rgb(bh)):
-            return "tint"
-    return "violation"
+            return "tint", bh
+    return "violation", None
 
 
 class Deck:
@@ -222,14 +236,21 @@ def run_checks(path):
             h = hexval.upper()
             usage.setdefault(h, {}).setdefault(f, 0)
             usage[h][f] += 1
-    violations = {h: fs for h, fs in usage.items() if classify_color(h) == "violation"}
+    classified = {h: classify_color(h) for h in usage}
+    violations = {h: usage[h] for h, (cls, _) in classified.items() if cls == "violation"}
+    nears = {h: ref for h, (cls, ref) in classified.items() if cls == "near"}
     if violations:
         det = [f"#{h} ({sum(fs.values())} steder: {short(fs)})"
                for h, fs in sorted(violations.items(), key=lambda kv: -sum(kv[1].values()))]
         add("colors", "FAIL", f"{len(violations)} farger utenfor BDO-paletten "
             "(tillatt: palettfargene, tint/skygge av dem, gratoner)", det)
+    elif nears:
+        det = [f"#{h} skal vaere #{ref} ({BRAND_COLORS[ref]}) - {sum(usage[h].values())} steder: {short(usage[h])}"
+               for h, ref in sorted(nears.items())]
+        add("colors", "WARN", f"{len(nears)} nesten-palettfarger (feilhusket hex?) "
+            "- bytt til eksakt verdi", det)
     else:
-        n_brand = sum(1 for h in usage if classify_color(h) == "brand")
+        n_brand = sum(1 for h, (cls, _) in classified.items() if cls == "brand")
         add("colors", "PASS", f"Alle {len(usage)} eksplisitte farger er pa "
             f"paletten eller noytrale ({n_brand} rene palettfarger)")
 

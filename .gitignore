@@ -7,3 +7,5 @@ eval-runs/**/slide-*.jpg
 eval-runs/**/slide-*.png
 eval-runs/**/*.pdf
 eval-runs/**/thumbnails*.jpg
+eval-runs/**/review.html
+eval-runs/**/node_modules/

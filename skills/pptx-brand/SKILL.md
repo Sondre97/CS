@@ -44,12 +44,25 @@ riktige farger og fonter automatisk; ikke hardkod farger oppå temaet.
 
 **B – Ingen mal tilgjengelig**: Bygg med pptxgenjs etter pptx-skillens
 oppskrift, med brand-reglene under som designsystem. Sett alle farger og
-fonter eksplisitt (generert deck har ikke BDO-temaet, så temafarge-referanser
-ville arvet feil farger).
+fonter eksplisitt – et generert deck har Office-temaet, så en
+temafarge-referanse (`accent1` osv.) gir Office-blått hos mottaker selv om
+koden din ser riktig ut.
+
+**Skriv inn BDO-temaet i tillegg.** Etter at pptxgenjs har skrevet filen,
+bytt `<a:clrScheme>` og `<a:fontScheme>` i `ppt/theme/theme1.xml` til
+BDO-verdiene under (pakk ut, rediger, pakk igjen – se pptx-skillen). Det
+koster to minutter og gir to ting eksplisitte farger ikke gir: mottakeren får
+riktig palett i fargevelgeren når de redigerer videre, og en glemt
+temareferanse blir riktig i stedet for blå. `check_brand.py` sjekker begge
+deler (`theme` og `scheme_usage`).
 
 ### 3. Brand-regler (fasit fra bdo-design)
 
-- **Farger** – kun disse, tint/skygge av dem, eller gråtoner:
+- **Farger** – kopiér hex-verdiene herfra, aldri fra hukommelsen. Målingen av
+  denne skillen viste at modellen uten fasit foran seg konsekvent skriver
+  `ED1A3B` i stedet for `E81A3B` og `2E2E38` i stedet for `333333`: nær nok
+  til å passere en menneskelig gjennomgang, feil merkevare i hver eneste fil.
+  Kun disse verdiene, tint/skygge av dem, eller gråtoner:
   `E81A3B` (primær rød – aksent og høydepunkt, ALDRI store tekstflater),
   `333333` (all brødtekst), `5B6E7F` (slate/sekundær), `98002E` (burgunder),
   `D67900` (oransje, sparsomt), `009966` (grønn/positiv), `008FD2` (blå),

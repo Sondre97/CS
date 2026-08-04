@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Filen ba2026_partner.pptx finnes og er en gyldig pptx",
+      "passed": true,
+      "evidence": "ba2026_partner.pptx åpnet med python-pptx"
+    },
+    {
+      "text": "check_brand.py: slide_size, fonts, colors, scheme_usage og placeholders er PASS",
+      "passed": false,
+      "evidence": "slide_size=PASS, fonts=FAIL, colors=FAIL, scheme_usage=FAIL, placeholders=PASS"
+    },
+    {
+      "text": "Dekket har nøyaktig 5 slides",
+      "passed": true,
+      "evidence": "5 slides"
+    },
+    {
+      "text": "Nøkkeltallene 4,2, 18 og 34 forekommer i slideteksten",
+      "passed": true,
+      "evidence": "{'4,2': True, '18': True, '34': True}"
+    },
+    {
+      "text": "Siste slide handler om konsekvenser for BDOs rådgivning",
+      "passed": true,
+      "evidence": "Siste slide-tekst: 'BA-ANALYSEN 2026 · IMPLIKASJONER FOR BDO Hva funnene betyr for BDOs rådgivningsarbeid BDO BDO | BA-analysen 2026 · Partn'"
+    },
+    {
+      "text": "Ingen slide er kun tittel + kulepunkter uten visuelt element (tall-callouts, graf, ikon eller flate)",
+      "passed": true,
+      "evidence": "Alle slides har visuelt element eller stort tall-callout"
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.8333
+  }
+}
