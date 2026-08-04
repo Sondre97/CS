@@ -154,6 +154,18 @@ def _results_frame(rows: list[dict], t: dict) -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
+def _column_config(t: dict) -> dict:
+    """Keep the identifying columns and the value itself readable when the
+    table is narrow; long report filenames otherwise push Value out of view."""
+    return {
+        t["col_company"]: st.column_config.TextColumn(width="small"),
+        t["col_report"]: st.column_config.TextColumn(width="medium"),
+        t["col_year"]: st.column_config.TextColumn(width="small"),
+        t["col_metric"]: st.column_config.TextColumn(width="medium"),
+        t["col_value"]: st.column_config.TextColumn(width="small"),
+    }
+
+
 def _finding_card(f: Finding, t: dict, report: str) -> None:
     status_text, badge = _status(f, t)
     value = html.escape(f.value) if f.found else "—"
@@ -178,18 +190,18 @@ def _finding_card(f: Finding, t: dict, report: str) -> None:
 
 
 def _extract_one(fl: dict, metrics: list[str], engine: str,
-                 endpoint: str, t: dict) -> list[Finding]:
+                 endpoint: str) -> tuple[list[Finding], str]:
+    """Extract one document. Returns (findings, failure) — `failure` is the
+    endpoint error to report, empty when the chosen engine worked."""
     pages, rows = fl["pages"], fl["rows"]
-    findings = None
+    failure = ""
     if engine == "llm":
         try:
-            findings = extract_with_llm(pages, metrics, endpoint=endpoint,
-                                        row_texts=rows)
+            return extract_with_llm(pages, metrics, endpoint=endpoint,
+                                    row_texts=rows), ""
         except Exception as exc:  # endpoint missing / permissions / network
-            st.error(f'{t["llm_error"]}\n\n`{type(exc).__name__}: {_md(str(exc))}`')
-    if findings is None:
-        findings = extract_heuristic(pages, metrics, row_texts=rows)
-    return findings
+            failure = f"{type(exc).__name__}: {exc}"
+    return extract_heuristic(pages, metrics, row_texts=rows), failure
 
 
 def main() -> None:
@@ -216,11 +228,18 @@ def main() -> None:
 
     uploads = st.file_uploader(t["upload_label"], type=["pdf"],
                                accept_multiple_files=True, key="pdfs")
+    # Switching language translates the metric list only while it is still the
+    # untouched default — anything typed is the user's and stays put.
+    other = "no" if lang == "en" else "en"
+    if st.session_state.get("metrics") == DEFAULT_METRICS[other]:
+        st.session_state["metrics"] = DEFAULT_METRICS[lang]
     metrics_raw = st.text_area(
         t["metrics_label"], value=DEFAULT_METRICS[lang],
         height=140, help=t["metrics_help"], key="metrics",
     )
     metrics = [m.strip() for m in metrics_raw.splitlines() if m.strip()]
+    if not metrics:
+        st.warning(t["no_metrics_warning"])
 
     if not uploads:
         st.info(t["upload_first"])
@@ -278,64 +297,74 @@ def main() -> None:
         st.warning(t["no_text_warning"] + " (" +
                    ", ".join(_md(fl["name"]) for fl in thin) + ")")
 
-    # Results are stored per (file, metrics, engine, endpoint) — adding another
-    # report later reuses what is already extracted and only processes the new
-    # file, so the table accumulates across runs.
+    # Results are kept per document, tagged with the settings that produced
+    # them. Editing a metric therefore never blanks the table — the previous
+    # results stay on screen, marked stale, until the next extraction. Adding
+    # a report only processes the new file, so the table accumulates.
     store = st.session_state.setdefault("per_file_results", {})
 
     def result_key(fl):
         return hashlib.sha256(
-            (fl["hash"] + repr((metrics, engine, endpoint, "v2"))).encode()
+            (fl["hash"] + repr((metrics, engine, endpoint, "v3"))).encode()
         ).hexdigest()
 
     if st.button(t["extract_button"], type="primary", disabled=not metrics):
+        reported_failure = False
         for fl in files:
             key = result_key(fl)
-            if key in store:
+            if store.get(fl["hash"], {}).get("key") == key:
                 continue
             with st.spinner(f'{t["extracting"]} — {fl["name"]}'):
-                findings = _extract_one(fl, metrics, engine, endpoint, t)
+                findings, failure = _extract_one(fl, metrics, engine, endpoint)
+            if failure and not reported_failure:
+                # One endpoint is either reachable or not; saying so once per
+                # upload would bury the table under identical errors.
+                st.error(t["llm_error"])
+                st.code(failure, language=None)
+                reported_failure = True
             with st.spinner(t["locating"]):
                 findings = [locate_finding(fl["bytes"], f, len(fl["pages"]))
                             for f in findings]
-            store[key] = findings
-        # Bound session memory, but never evict a result the table is about to
-        # show — only stale entries from earlier metric/engine combinations go.
-        live = {result_key(fl) for fl in files}
+            store[fl["hash"]] = {"key": key, "findings": findings}
+        # Bound session memory without ever dropping a document still uploaded.
+        live = {fl["hash"] for fl in files}
         for key in [k for k in store if k not in live][:max(0, len(store) - 64)]:
             store.pop(key, None)
 
     rows = []
-    missing = False
+    stale = False
     for fl in files:
-        findings = store.get(result_key(fl))
-        if findings is None:
-            missing = True
+        entry = store.get(fl["hash"])
+        if entry is None:
+            stale = True
             continue
-        for f in findings:
+        if entry["key"] != result_key(fl):
+            stale = True
+        for f in entry["findings"]:
             rows.append({
                 "company": fl["company"], "report": fl["name"],
                 "year": fl["year"], "finding": f, "file": fl,
             })
     if not rows:
         return
-    if missing:
+    if stale:
         st.caption(t["stale_settings"])
 
     st.subheader(t["results_header"])
-    left, right = st.columns([6, 6], gap="large")
 
-    with left:
-        frame = _results_frame(rows, t)
-        st.dataframe(frame, width="stretch", hide_index=True)
-        st.download_button(
-            t["download_csv"],
-            data=frame.to_csv(index=False).encode("utf-8-sig"),
-            file_name="metrics.csv", mime="text/csv",
-            key="dl_csv",
-        )
+    frame = _results_frame(rows, t)
+    st.dataframe(frame, width="stretch", hide_index=True,
+                 column_config=_column_config(t))
+    st.download_button(
+        t["download_csv"],
+        data=frame.to_csv(index=False).encode("utf-8-sig"),
+        file_name="metrics.csv", mime="text/csv",
+        key="dl_csv",
+    )
 
-    with right:
+    st.divider()
+
+    with st.container():
         st.markdown(f"#### {t['evidence_header']}")
         showable = [r for r in rows if r["finding"].found]
         if not showable:

@@ -118,3 +118,47 @@ def test_evidence_panel_renders_an_image_per_report(n):
     assert len(at.dataframe[0].value) == n
     # the evidence panel always renders exactly one highlighted page
     assert len(at.image) == 1
+
+
+def test_editing_metrics_does_not_blank_the_results():
+    """Typing in the metric box must not wipe the table: results stay on
+    screen, flagged stale, until the next extraction."""
+    uploads = [FakeUpload(report_pdf("50,4"), "Ferd-2024.pdf")]
+    with patch("streamlit.file_uploader", return_value=uploads):
+        at = AppTest.from_file(str(APP_DIR / "app.py"), default_timeout=90)
+        at.run()
+        at.text_area(key="metrics").set_value("Verdijustert egenkapital").run()
+        at.button[0].click().run()
+        assert values_in_table(at) == ["50,4"]
+
+        at.text_area(key="metrics").set_value("Verdijustert egenkapital\nEBITDA").run()
+        assert not at.exception, at.exception
+        assert at.dataframe, "results vanished when the metric list was edited"
+        assert values_in_table(at) == ["50,4"]
+        assert any("re-extract" in c.value or "på nytt" in c.value for c in at.caption)
+
+
+def test_language_switch_translates_untouched_default_metrics():
+    uploads = [FakeUpload(report_pdf("50,4"), "Ferd-2024.pdf")]
+    with patch("streamlit.file_uploader", return_value=uploads):
+        at = AppTest.from_file(str(APP_DIR / "app.py"), default_timeout=90)
+        at.run()
+        assert "Revenue" in at.text_area(key="metrics").value
+        at.radio(key="lang").set_value("no").run()
+        assert not at.exception, at.exception
+        assert "Driftsinntekter" in at.text_area(key="metrics").value
+
+
+def test_endpoint_failure_reported_once_for_many_files():
+    """A dead endpoint is one problem, not one problem per uploaded report."""
+    uploads = [FakeUpload(report_pdf(f"5{i},4"), f"r{i}.pdf") for i in range(3)]
+    with patch("streamlit.file_uploader", return_value=uploads):
+        at = AppTest.from_file(str(APP_DIR / "app.py"), default_timeout=120)
+        at.run()
+        at.text_area(key="metrics").set_value("Verdijustert egenkapital").run()
+        at.radio(key="engine").set_value("llm").run()
+        at.button[0].click().run()
+    assert not at.exception, at.exception
+    assert len(at.error) == 1, f"{len(at.error)} error blocks for one bad endpoint"
+    # it still falls back, so the user gets values rather than nothing
+    assert values_in_table(at) == ["50,4", "51,4", "52,4"]
