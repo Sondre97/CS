@@ -50,21 +50,27 @@ def _md(text: str) -> str:
     return (text or "").translate(_MD_ESCAPE)
 
 
+# Every cached helper takes the PDF as `_pdf_bytes` — Streamlit skips
+# underscore-prefixed arguments when building a cache key — plus the document
+# digest as an explicit key. Hashing tens of megabytes once per upload instead
+# of once per call per rerun is the difference between an instant widget
+# interaction and a visible stall.
 @st.cache_data(show_spinner=False, max_entries=64)
-def cached_pages(pdf_bytes: bytes) -> list[str]:
-    return extract_pages(pdf_bytes)
+def cached_pages(_pdf_bytes: bytes, key: str) -> list[str]:
+    return extract_pages(_pdf_bytes)
 
 
 @st.cache_data(show_spinner=False, max_entries=64)
-def cached_rows(pdf_bytes: bytes) -> list[str]:
-    return extract_rows(pdf_bytes)
+def cached_rows(_pdf_bytes: bytes, key: str) -> list[str]:
+    return extract_rows(_pdf_bytes)
 
 
 @st.cache_data(show_spinner=False, max_entries=64)
-def cached_render(pdf_bytes: bytes, page_index: int, value_rects: tuple,
-                  label_rects: tuple, context_rects: tuple) -> bytes:
+def cached_render(_pdf_bytes: bytes, key: str, page_index: int,
+                  value_rects: tuple, label_rects: tuple,
+                  context_rects: tuple) -> bytes:
     return render_page_with_highlights(
-        pdf_bytes, page_index,
+        _pdf_bytes, page_index,
         [tuple(r) for r in value_rects],
         [tuple(r) for r in label_rects],
         [tuple(r) for r in context_rects],
@@ -72,26 +78,29 @@ def cached_render(pdf_bytes: bytes, page_index: int, value_rects: tuple,
 
 
 @st.cache_data(show_spinner=False, max_entries=64)
-def cached_locate(pdf_bytes: bytes, metric: str, label: str, value: str,
-                  page: int, quote: str, total_pages: int) -> Finding:
+def cached_locate(_pdf_bytes: bytes, key: str, metric: str, label: str,
+                  value: str, page: int, quote: str,
+                  total_pages: int) -> Finding:
     """Pin one alternative occurrence to coordinates, for the evidence view."""
     return locate_finding(
-        pdf_bytes,
+        _pdf_bytes,
         Finding(metric=metric, found=True, value=value, page=page,
                 label=label, quote=quote),
         total_pages,
     )
 
 
-@st.cache_data(show_spinner=False, max_entries=16)
-def cached_annotated_pdf(pdf_bytes: bytes, findings_sig: tuple) -> bytes:
+# An annotated copy is as large as the report itself, so this cache is kept
+# small and expiring rather than holding every report ever viewed.
+@st.cache_data(show_spinner=False, max_entries=3, ttl=900)
+def cached_annotated_pdf(_pdf_bytes: bytes, key: str, findings_sig: tuple) -> bytes:
     findings = [
         Finding(metric=m, value=v, unit=u, found=True, located=True, page=p,
                 value_rects=[tuple(r) for r in vr],
                 label_rects=[tuple(r) for r in lr])
         for (m, v, u, p, vr, lr) in findings_sig
     ]
-    return build_annotated_pdf(pdf_bytes, findings)
+    return build_annotated_pdf(_pdf_bytes, findings)
 
 
 def _annotation_signature(findings: list[Finding]) -> tuple:
@@ -107,6 +116,23 @@ _REPORT_WORDS = re.compile(
     r"|rapport\w*|kvartal\w*|result\w*|regnskap\w*)\b",
     re.IGNORECASE,
 )
+
+
+def _document_key(upload, data: bytes) -> str:
+    """Digest of an uploaded PDF, computed once per upload.
+
+    Streamlit hands back the same UploadedFile (same ``file_id``) on every
+    rerun, so the digest is memoised against it; hashing 50 MB on each widget
+    interaction is otherwise pure latency.
+    """
+    file_id = getattr(upload, "file_id", None)
+    cache = st.session_state.setdefault("_digest_by_file_id", {})
+    if file_id is not None and file_id in cache:
+        return cache[file_id]
+    digest = hashlib.sha256(data).hexdigest()
+    if file_id is not None:
+        cache[file_id] = digest
+    return digest
 
 
 def _guess_company(filename: str) -> str:
@@ -152,6 +178,27 @@ def _results_frame(rows: list[dict], t: dict) -> pd.DataFrame:
             t["col_status"]: _status(f, t)[0],
         })
     return pd.DataFrame(out)
+
+
+def _unique_labels(rows: list[dict], t: dict) -> list[str]:
+    """One distinct label per row for the evidence picker.
+
+    Streamlit resolves a selectbox back to an option through its formatted
+    label, so duplicates make rows unreachable rather than merely ugly.
+    """
+    labels = []
+    for r in rows:
+        head = " ".join(x for x in (r["company"], r["year"]) if x)
+        tail = t["evidence_pick_fmt"].format(
+            report=r["report"], metric=r["finding"].metric)
+        labels.append(f"{head} · {tail}" if head else tail)
+
+    counts: dict[str, int] = {}
+    for i, label in enumerate(labels):
+        counts[label] = counts.get(label, 0) + 1
+        if counts[label] > 1:
+            labels[i] = f"{label} #{counts[label]}"
+    return labels
 
 
 def _column_config(t: dict) -> dict:
@@ -252,10 +299,10 @@ def main() -> None:
     files = []
     for slot, up in enumerate(uploads):
         pdf_bytes = up.getvalue()
-        pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
+        pdf_hash = _document_key(up, pdf_bytes)
         try:
-            pages = cached_pages(pdf_bytes)
-            rows = cached_rows(pdf_bytes)
+            pages = cached_pages(pdf_bytes, pdf_hash)
+            rows = cached_rows(pdf_bytes, pdf_hash)
         except Exception:
             st.error(f'{t["skipped_file"]} **{_md(up.name)}** — {t["pdf_error"]}')
             continue
@@ -372,17 +419,18 @@ def main() -> None:
         if not showable:
             st.info(t["not_found"])
             return
-        # Selection is by position, not by label: two uploads can share a
-        # filename and metric, and matching on the label would always resolve
-        # to the first of them.
-        def row_label(i: int) -> str:
-            r = showable[i]
-            return t["evidence_pick_fmt"].format(
-                report=r["report"], metric=r["finding"].metric)
+        # Labels must be unique, not merely the option values: Streamlit
+        # stores a selectbox's state as the FORMATTED label, so two rows
+        # rendering the same text collapse onto one and the other row can
+        # never be inspected — however the options themselves are keyed.
+        # Different issuers really do all publish "arsrapport.pdf", so
+        # company and year go in the label, and any remaining tie is
+        # numbered.
+        labels = _unique_labels(showable, t)
 
         selected_row = st.selectbox(
             t["select_metric"], range(len(showable)),
-            format_func=row_label, key="evidence_for",
+            format_func=lambda i: labels[i], key="evidence_for",
         )
         selected_row = min(selected_row or 0, len(showable) - 1)
         chosen_row = showable[selected_row]
@@ -407,7 +455,9 @@ def main() -> None:
                 head = t["occurrence_fmt"].format(page=(page or 0) + 1, value=value)
                 if i == 0:
                     head += f" · {t['occurrence_extracted']}"
-                return f"{head} — {line[:70]}"
+                # numbered for the same reason as the picker above: identical
+                # radio labels would collapse onto one option
+                return f"{i + 1}. {head} — {line[:70]}"
 
             with st.expander(t["occurrences_label"].format(n=len(occurrences)),
                              expanded=False):
@@ -421,8 +471,9 @@ def main() -> None:
         if selected != 0:
             page, value, line = occurrences[selected]
             view = cached_locate(
-                chosen_file["bytes"], chosen.metric, chosen.label or chosen.metric,
-                value, page, line, len(chosen_file["pages"]),
+                chosen_file["bytes"], chosen_file["hash"], chosen.metric,
+                chosen.label or chosen.metric, value, page, line,
+                len(chosen_file["pages"]),
             )
             st.info(t["viewing_other"])
             if st.button(t["adopt_button"], key=f"adopt::{radio_key}"):
@@ -453,7 +504,7 @@ def main() -> None:
             unsafe_allow_html=True,
         )
         png = cached_render(
-            chosen_file["bytes"], view.page,
+            chosen_file["bytes"], chosen_file["hash"], view.page,
             tuple(map(tuple, view.value_rects)),
             tuple(map(tuple, view.label_rects)),
             tuple(map(tuple, view.context_rects)),
@@ -472,7 +523,8 @@ def main() -> None:
             st.download_button(
                 t["download_pdf_one"],
                 data=cached_annotated_pdf(
-                    chosen_file["bytes"], _annotation_signature(located_here)),
+                    chosen_file["bytes"], chosen_file["hash"],
+                    _annotation_signature(located_here)),
                 file_name=chosen_file["name"].replace(".pdf", "") + "_annotated.pdf",
                 mime="application/pdf",
                 key="dl_pdf",

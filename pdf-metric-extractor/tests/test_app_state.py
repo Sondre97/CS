@@ -17,6 +17,8 @@ from streamlit.testing.v1 import AppTest
 APP_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(APP_DIR))
 
+from models import Finding  # noqa: E402
+
 
 class FakeUpload(io.BytesIO):
     """Stand-in for Streamlit's UploadedFile (only .name and .getvalue used)."""
@@ -166,3 +168,33 @@ def test_endpoint_failure_reported_once_for_many_files():
     assert len(at.error) == 1, f"{len(at.error)} error blocks for one bad endpoint"
     # it still falls back, so the user gets values rather than nothing
     assert values_in_table(at) == ["50,4", "51,4", "52,4"]
+
+
+def test_evidence_labels_are_unique_per_row():
+    """Streamlit resolves a selectbox through its formatted label, so two rows
+    labelled the same make one of them permanently unreachable. Different
+    issuers all publish 'arsrapport.pdf', so this is the normal case."""
+    import app
+    from ui_strings import STRINGS
+
+    t = STRINGS["en"]
+    rows = [
+        {"company": "Ferd", "year": "2021", "report": "arsrapport.pdf",
+         "finding": Finding(metric="Verdijustert egenkapital", found=True)},
+        {"company": "Ferd", "year": "2025", "report": "arsrapport.pdf",
+         "finding": Finding(metric="Verdijustert egenkapital", found=True)},
+        # even identical company AND year must not collapse
+        {"company": "Ferd", "year": "2025", "report": "arsrapport.pdf",
+         "finding": Finding(metric="Verdijustert egenkapital", found=True)},
+    ]
+    labels = app._unique_labels(rows, t)
+    assert len(set(labels)) == len(labels), labels
+    assert "2021" in labels[0] and "2025" in labels[1]
+
+
+def test_same_named_reports_offer_distinct_options():
+    at = run_app([FakeUpload(report_pdf("50,4"), "arsrapport.pdf"),
+                  FakeUpload(report_pdf("45,8"), "arsrapport.pdf")])
+    assert not at.exception, at.exception
+    options = at.selectbox[0].options
+    assert len(set(options)) == 2, options

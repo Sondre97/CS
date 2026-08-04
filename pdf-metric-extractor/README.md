@@ -55,13 +55,17 @@ So the app never shows a value alone:
    API endpoint, e.g. `databricks-claude-sonnet-4-5`). The model must return
    each value *verbatim* — exact digits and separators — plus the page, the
    document's own label for the metric, and a supporting quote.
-3. **Localisation** — the verbatim value is pinned to coordinates:
-   `search_for` first, then a separator-normalised match against the page's
-   word stream (handles `1 234,5` written with non-breaking/thin spaces, or
-   split across words). When a value occurs several times on a page, the
-   occurrence nearest the metric's label wins (same table row preferred). If
-   the model cited the wrong page, neighbouring pages and then the whole
-   document are searched.
+3. **Localisation** — the verbatim value is pinned to coordinates by matching
+   it against the page's word stream with separators normalised, so `1 234,5`
+   is found however it is spaced or split across words. Digit boundaries are
+   judged geometrically: `12` never pins inside `2012`, while `50,4    45,8`
+   stays two columns rather than fusing into one number. (PyMuPDF's
+   `search_for` is used for labels and quotes, but not for values — it
+   happily matches a number inside a longer one.) When a value occurs several
+   times on a page, the occurrence nearest the metric's label wins; a page
+   carrying both value and label beats a page with the value alone; and if
+   the model cited the wrong page, neighbours and then the whole document are
+   searched.
 4. **Evidence** — the page is rendered as an image with translucent overlays
    (red = value, slate = label, orange = quote context), and an annotated PDF
    copy is offered for download.
