@@ -1,6 +1,6 @@
-# Databricks Apps pre-installs streamlit 1.38, which lacks st.image
-# use_container_width — the floor must force an upgrade.
-streamlit>=1.49
+# Databricks Apps pre-installs streamlit 1.38, which predates the width=
+# API this app uses — the floor must force an upgrade.
+streamlit>=1.50
 PyMuPDF>=1.24.9
 databricks-sdk>=0.38
 openai>=1.40

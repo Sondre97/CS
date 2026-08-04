@@ -27,3 +27,10 @@ class Finding:
     value_rects: list[tuple[float, float, float, float]] = field(default_factory=list)
     label_rects: list[tuple[float, float, float, float]] = field(default_factory=list)
     context_rects: list[tuple[float, float, float, float]] = field(default_factory=list)
+
+    # Every other place in the document that states this metric, best-ranked
+    # first, as (page, value, line). A metric usually appears several times
+    # with different numbers — the group total, each segment's share, a
+    # five-year history — so the answer is shown alongside its alternatives
+    # rather than on its own. See occurrences.py.
+    alternatives: list[tuple[int, str, str]] = field(default_factory=list)

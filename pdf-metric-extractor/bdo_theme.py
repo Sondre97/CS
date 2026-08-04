@@ -25,6 +25,16 @@ _CSS = f"""
 html, body, [data-testid="stAppViewContainer"] * {{
     font-family: "Proxima Nova", "Segoe UI", system-ui, Arial, sans-serif;
 }}
+/* Streamlit draws icons as ligatures in a Material Symbols font — the rule
+   above would otherwise render them as the literal words "upload",
+   "arrow_right", "close" wherever an icon should be. */
+[data-testid="stIconMaterial"],
+span[class*="material-symbols"],
+.material-symbols-rounded,
+.material-symbols-outlined {{
+    font-family: "Material Symbols Rounded", "Material Symbols Outlined",
+                 "Material Icons" !important;
+}}
 [data-testid="stAppViewContainer"] {{ color: {TOKENS["text"]}; }}
 
 .bdo-header {{

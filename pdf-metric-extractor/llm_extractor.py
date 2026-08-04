@@ -7,10 +7,14 @@ Two modes:
   OpenAI-compatible API. Auth comes from the app's service principal via
   ``databricks-sdk`` (env vars are injected automatically inside Databricks
   Apps; a local ``databricks auth login`` profile works for development).
-* ``extract_heuristic`` — fully offline fallback: fuzzy label matching per
-  line + the most value-like number on that line. Lower quality, but keeps the
-  app usable before a serving endpoint has been bound, and makes the pipeline
-  testable.
+* ``extract_heuristic`` — fully offline fallback built on :mod:`occurrences`:
+  the best-ranked line naming the metric. Lower quality than the LLM, but
+  keeps the app usable before a serving endpoint has been bound, and makes the
+  pipeline testable.
+
+Both engines record, per metric, every other place the document states it
+(``Finding.alternatives``), so a value is never presented without the
+context that would reveal it to be a segment figure or a prior year.
 
 Both return :class:`models.Finding` with a verbatim ``value`` string so that
 ``pdf_utils.locate_finding`` can pin it to exact coordinates afterwards.
@@ -24,6 +28,7 @@ import re
 from rapidfuzz import fuzz
 
 from models import Finding
+from occurrences import _norm_value, find_occurrences
 
 DEFAULT_ENDPOINT = os.getenv("SERVING_ENDPOINT", "databricks-claude-sonnet-4-5")
 
@@ -204,7 +209,8 @@ def _merge(metrics: list[str], per_chunk: list[list[Finding]]) -> list[Finding]:
 
 
 def extract_with_llm(page_texts: list[str], metrics: list[str],
-                     endpoint: str = "", client=None) -> list[Finding]:
+                     endpoint: str = "", client=None,
+                     row_texts: list[str] | None = None) -> list[Finding]:
     """Extract `metrics` from the document via a serving endpoint.
 
     Raises on connectivity/permission errors so the UI can surface them; a
@@ -218,90 +224,55 @@ def extract_with_llm(page_texts: list[str], metrics: list[str],
         _query_chunk(client, endpoint, metrics, first_page, chunk)
         for first_page, chunk in chunk_pages(page_texts)
     ]
-    return _merge(metrics, per_chunk)
+    return attach_alternatives(_merge(metrics, per_chunk), page_texts, row_texts)
 
 
 # --- Offline heuristic fallback ---------------------------------------------
 
-# A number token: optional sign/parenthesis, digits, with separators that must
-# each be followed IMMEDIATELY by a digit — a single space/NBSP/thin space is a
-# thousands separator, two spaces is a column gap, so adjacent table columns
-# never fuse into one value.
-_NUMBER_RE = re.compile(
-    "[-\u2212(]?\\d(?:[\\d.,]|[ \u00a0\u202f\u2009](?=\\d))*\\)?(?: ?%)?"
-)
-
-# Years and dates are rarely the metric value the user asked for.
-_DATE_LIKE_RE = re.compile(
-    "^\\(?[-\u2212]?(?:\\d{1,2}[./-]\\d{1,2}[./-]\\d{2,4}|(?:19|20)\\d{2})\\)?$"
-)
-
-
-def _line_number_candidates(line: str):
-    """(position, verbatim token) for each number-ish substring on a line."""
-    out = []
-    for m in _NUMBER_RE.finditer(line):
-        token = m.group(0).strip().rstrip(".,")
-        if any(c.isdigit() for c in token):
-            out.append((m.start(), token))
-    return out
-
-
-def _pick_value(candidates, label_end: int):
-    """Choose the most value-like token: prefer numbers positioned after the
-    matched label, and skip year/date tokens when anything else exists."""
-    after = [c for c in candidates if c[0] >= label_end]
-    pool = after or candidates
-    non_date = [c for c in pool if not _DATE_LIKE_RE.match(c[1])]
-    return (non_date or pool)[0][1]
-
 
 def extract_heuristic(page_texts: list[str], metrics: list[str],
-                      min_score: int = 82) -> list[Finding]:
-    """Fuzzy line search: best-scoring line containing the metric label and at
-    least one number. Quality is below the LLM path — results are flagged with
-    confidence='heuristic'."""
+                      min_score: int = 82,
+                      row_texts: list[str] | None = None) -> list[Finding]:
+    """Offline engine: the best-ranked occurrence of each metric.
+
+    Candidate ranking (label match, cross-document consensus, position) lives
+    in :mod:`occurrences`; everything it did not pick is carried along as
+    ``Finding.alternatives`` so the UI can show the user what else the
+    document says and let them switch.
+    """
     results = []
     for metric in metrics:
-        target = metric.casefold()
-        best = None  # (score, page_index, line, value)
-        for page_index, text in enumerate(page_texts):
-            for line in text.splitlines():
-                stripped = line.strip()
-                if len(stripped) < 2:
-                    continue
-                hay = stripped.casefold()
-                score = fuzz.partial_ratio(target, hay)
-                if score < min_score:
-                    continue
-                candidates = _line_number_candidates(stripped)
-                if not candidates:
-                    continue
-                first_num = candidates[0][0]
-                # Table rows ("Revenue  1 234,5") beat prose ("Revenue growth
-                # of 12 % ..."): reward lines whose text before the first
-                # number is essentially just the label, and earlier pages
-                # (primary statements come first).
-                prefix = stripped[:first_num].strip(" .:\u00b7-\u2013\u2014").casefold()
-                prefix_score = fuzz.ratio(target, prefix)
-                try:
-                    label_end = fuzz.partial_ratio_alignment(target, hay).dest_end
-                except Exception:
-                    label_end = 0
-                ranked = (score + 0.5 * prefix_score, -page_index)
-                if best is None or ranked > best[0]:
-                    best = (ranked, page_index, stripped,
-                            _pick_value(candidates, label_end))
-
-        if best is None:
+        occs = find_occurrences(page_texts, metric, min_score=min_score,
+                                row_texts=row_texts)
+        if not occs:
             results.append(Finding(metric=metric, found=False,
                                    confidence="heuristic",
                                    comment="No matching line with a number found."))
-        else:
-            _, page_index, line, value = best
-            results.append(Finding(
-                metric=metric, found=True, value=value, page=page_index,
-                quote=line[:200], label=metric, confidence="heuristic",
-                comment="Heuristic match \u2014 verify against the highlight.",
-            ))
+            continue
+        best = occs[0]
+        results.append(Finding(
+            metric=metric, found=True, value=best.value, page=best.page,
+            quote=best.line, label=metric, confidence="heuristic",
+            comment="Heuristic match \u2014 verify against the highlight.",
+            alternatives=[(o.page, o.value, o.line) for o in occs[1:]],
+        ))
     return results
+
+
+def attach_alternatives(findings: list[Finding], page_texts: list[str],
+                        row_texts: list[str] | None = None) -> list[Finding]:
+    """Record where else each metric is stated, for any engine.
+
+    Run this on LLM results too: it is an independent cross-check of the
+    model, letting the user see at a glance that e.g. "verdijustert
+    egenkapital" also appears on the segment pages with smaller numbers.
+    """
+    for f in findings:
+        occs = find_occurrences(page_texts, f.label or f.metric,
+                                row_texts=row_texts)
+        chosen = _norm_value(f.value) if f.value else None
+        f.alternatives = [
+            (o.page, o.value, o.line) for o in occs
+            if not (chosen and _norm_value(o.value) == chosen and o.page == f.page)
+        ]
+    return findings

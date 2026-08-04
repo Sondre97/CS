@@ -21,9 +21,11 @@ from llm_extractor import (
     extract_with_llm,
 )
 from models import Finding
+from occurrences import _norm_value
 from pdf_utils import (
     build_annotated_pdf,
     extract_pages,
+    extract_rows,
     locate_finding,
     render_page_with_highlights,
 )
@@ -48,9 +50,14 @@ def _md(text: str) -> str:
     return (text or "").translate(_MD_ESCAPE)
 
 
-@st.cache_data(show_spinner=False, max_entries=16)
+@st.cache_data(show_spinner=False, max_entries=64)
 def cached_pages(pdf_bytes: bytes) -> list[str]:
     return extract_pages(pdf_bytes)
+
+
+@st.cache_data(show_spinner=False, max_entries=64)
+def cached_rows(pdf_bytes: bytes) -> list[str]:
+    return extract_rows(pdf_bytes)
 
 
 @st.cache_data(show_spinner=False, max_entries=64)
@@ -61,6 +68,18 @@ def cached_render(pdf_bytes: bytes, page_index: int, value_rects: tuple,
         [tuple(r) for r in value_rects],
         [tuple(r) for r in label_rects],
         [tuple(r) for r in context_rects],
+    )
+
+
+@st.cache_data(show_spinner=False, max_entries=64)
+def cached_locate(pdf_bytes: bytes, metric: str, label: str, value: str,
+                  page: int, quote: str, total_pages: int) -> Finding:
+    """Pin one alternative occurrence to coordinates, for the evidence view."""
+    return locate_finding(
+        pdf_bytes,
+        Finding(metric=metric, found=True, value=value, page=page,
+                label=label, quote=quote),
+        total_pages,
     )
 
 
@@ -158,16 +177,18 @@ def _finding_card(f: Finding, t: dict, report: str) -> None:
     )
 
 
-def _extract_one(pages: list[str], metrics: list[str], engine: str,
+def _extract_one(fl: dict, metrics: list[str], engine: str,
                  endpoint: str, t: dict) -> list[Finding]:
+    pages, rows = fl["pages"], fl["rows"]
     findings = None
     if engine == "llm":
         try:
-            findings = extract_with_llm(pages, metrics, endpoint=endpoint)
+            findings = extract_with_llm(pages, metrics, endpoint=endpoint,
+                                        row_texts=rows)
         except Exception as exc:  # endpoint missing / permissions / network
             st.error(f'{t["llm_error"]}\n\n`{type(exc).__name__}: {_md(str(exc))}`')
     if findings is None:
-        findings = extract_heuristic(pages, metrics)
+        findings = extract_heuristic(pages, metrics, row_texts=rows)
     return findings
 
 
@@ -206,35 +227,50 @@ def main() -> None:
         return
 
     # Per-file: bytes, readability, metadata (company/year, user-editable).
+    # Widget keys are per upload SLOT, not per content hash: the same PDF can
+    # legitimately be uploaded twice, and two identical hashes would collide
+    # into one key and abort the script.
     files = []
-    for up in uploads:
+    for slot, up in enumerate(uploads):
         pdf_bytes = up.getvalue()
         pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
         try:
             pages = cached_pages(pdf_bytes)
+            rows = cached_rows(pdf_bytes)
         except Exception:
             st.error(f'{t["skipped_file"]} **{_md(up.name)}** — {t["pdf_error"]}')
             continue
         files.append({
-            "name": up.name, "bytes": pdf_bytes, "hash": pdf_hash, "pages": pages,
+            "name": up.name, "bytes": pdf_bytes, "hash": pdf_hash,
+            "pages": pages, "rows": rows, "slot": slot,
+            "uid": f"{pdf_hash[:12]}#{slot}",
         })
     if not files:
         return
+
+    # Company/year survive a file being removed and re-added: Streamlit drops
+    # widget state for widgets that stop being rendered, so the last value is
+    # remembered per document.
+    remembered = st.session_state.setdefault("meta_by_hash", {})
 
     with st.expander(t["meta_header"], expanded=False):
         st.caption(t["meta_help"])
         for fl in files:
             c1, c2, c3 = st.columns([4, 3, 2])
             c1.markdown(f"**{_md(fl['name'])}** · {len(fl['pages'])} {t['pages']}")
+            prior = remembered.get(fl["hash"], {})
             fl["company"] = c2.text_input(
-                t["company_label"], value=_guess_company(fl["name"]),
-                key=f"company_{fl['hash'][:16]}",
+                t["company_label"],
+                value=prior.get("company") or _guess_company(fl["name"]),
+                key=f"company_{fl['uid']}",
             )
             fl["year"] = c3.text_input(
                 t["year_label"],
-                value=_guess_year(fl["name"], fl["pages"][0] if fl["pages"] else ""),
-                key=f"year_{fl['hash'][:16]}",
+                value=prior.get("year") or _guess_year(
+                    fl["name"], fl["pages"][0] if fl["pages"] else ""),
+                key=f"year_{fl['uid']}",
             )
+            remembered[fl["hash"]] = {"company": fl["company"], "year": fl["year"]}
 
     thin = [fl for fl in files
             if sum(len(p.strip()) for p in fl["pages"]) < 25 * max(1, len(fl["pages"]))]
@@ -258,13 +294,16 @@ def main() -> None:
             if key in store:
                 continue
             with st.spinner(f'{t["extracting"]} — {fl["name"]}'):
-                findings = _extract_one(fl["pages"], metrics, engine, endpoint, t)
+                findings = _extract_one(fl, metrics, engine, endpoint, t)
             with st.spinner(t["locating"]):
                 findings = [locate_finding(fl["bytes"], f, len(fl["pages"]))
                             for f in findings]
             store[key] = findings
-        while len(store) > 64:  # bound session memory
-            store.pop(next(iter(store)))
+        # Bound session memory, but never evict a result the table is about to
+        # show — only stale entries from earlier metric/engine combinations go.
+        live = {result_key(fl) for fl in files}
+        for key in [k for k in store if k not in live][:max(0, len(store) - 64)]:
+            store.pop(key, None)
 
     rows = []
     missing = False
@@ -288,7 +327,7 @@ def main() -> None:
 
     with left:
         frame = _results_frame(rows, t)
-        st.dataframe(frame, use_container_width=True, hide_index=True)
+        st.dataframe(frame, width="stretch", hide_index=True)
         st.download_button(
             t["download_csv"],
             data=frame.to_csv(index=False).encode("utf-8-sig"),
@@ -302,45 +341,101 @@ def main() -> None:
         if not showable:
             st.info(t["not_found"])
             return
-        labels = [
-            t["evidence_pick_fmt"].format(report=r["report"], metric=r["finding"].metric)
-            for r in showable
-        ]
-        chosen_label = st.selectbox(t["select_metric"], labels, key="evidence_for")
-        chosen_row = showable[labels.index(chosen_label)] if chosen_label in labels else showable[0]
+        # Selection is by position, not by label: two uploads can share a
+        # filename and metric, and matching on the label would always resolve
+        # to the first of them.
+        def row_label(i: int) -> str:
+            r = showable[i]
+            return t["evidence_pick_fmt"].format(
+                report=r["report"], metric=r["finding"].metric)
+
+        selected_row = st.selectbox(
+            t["select_metric"], range(len(showable)),
+            format_func=row_label, key="evidence_for",
+        )
+        selected_row = min(selected_row or 0, len(showable) - 1)
+        chosen_row = showable[selected_row]
         chosen = chosen_row["finding"]
         chosen_file = chosen_row["file"]
 
         _finding_card(chosen, t, chosen_row["report"])
 
-        if not chosen.located:
+        # A metric is usually stated in several places — the group total, each
+        # segment's share, a five-year history. Show them all so a segment
+        # figure can never masquerade as the answer unnoticed.
+        occurrences = [(chosen.page, chosen.value, chosen.quote)] + list(chosen.alternatives)
+        radio_key = f"occ::{chosen_file['uid']}::{chosen.metric}"
+        selected = 0
+        if len(occurrences) > 1:
+            distinct = len({_norm_value(v) for _, v, _ in occurrences})
+            if distinct > 1:
+                st.warning(t["ambiguity_warning"].format(n=distinct))
+
+            def occ_label(i):
+                page, value, line = occurrences[i]
+                head = t["occurrence_fmt"].format(page=(page or 0) + 1, value=value)
+                if i == 0:
+                    head += f" · {t['occurrence_extracted']}"
+                return f"{head} — {line[:70]}"
+
+            with st.expander(t["occurrences_label"].format(n=len(occurrences)),
+                             expanded=False):
+                selected = st.radio(
+                    t["occurrences_label"].format(n=len(occurrences)),
+                    range(len(occurrences)), format_func=occ_label,
+                    key=radio_key, label_visibility="collapsed",
+                )
+
+        view = chosen
+        if selected != 0:
+            page, value, line = occurrences[selected]
+            view = cached_locate(
+                chosen_file["bytes"], chosen.metric, chosen.label or chosen.metric,
+                value, page, line, len(chosen_file["pages"]),
+            )
+            st.info(t["viewing_other"])
+            if st.button(t["adopt_button"], key=f"adopt::{radio_key}"):
+                chosen.value, chosen.page, chosen.quote = view.value, view.page, view.quote
+                chosen.located = view.located
+                chosen.value_rects = view.value_rects
+                chosen.label_rects = view.label_rects
+                chosen.context_rects = view.context_rects
+                chosen.comment = t["adopted_note"]
+                chosen.alternatives = [
+                    o for o in occurrences
+                    if not (o[0] == view.page and _norm_value(o[1]) == _norm_value(view.value))
+                ]
+                st.session_state.pop(radio_key, None)
+                st.rerun()
+
+        if not view.located:
             st.warning(t["found_not_located"])
-            if chosen.quote:
-                st.caption(f'{t["quote_caption"]}: “{_md(chosen.quote)}”')
+            if view.quote:
+                st.caption(f'{t["quote_caption"]}: “{_md(view.quote)}”')
             return
 
         st.markdown(
-            f"""<div class="bdo-legend">{t['page_label']} {chosen.page + 1} —
+            f"""<div class="bdo-legend">{t['page_label']} {view.page + 1} —
 <span class="swatch" style="background:#E81A3B55;border:2px solid #E81A3B"></span>{t['legend_value']}
 <span class="swatch" style="background:#5B6E7F55"></span>{t['legend_label']}
 <span class="swatch" style="background:#D6790040"></span>{t['legend_context']}</div>""",
             unsafe_allow_html=True,
         )
         png = cached_render(
-            chosen_file["bytes"], chosen.page,
-            tuple(map(tuple, chosen.value_rects)),
-            tuple(map(tuple, chosen.label_rects)),
-            tuple(map(tuple, chosen.context_rects)),
+            chosen_file["bytes"], view.page,
+            tuple(map(tuple, view.value_rects)),
+            tuple(map(tuple, view.label_rects)),
+            tuple(map(tuple, view.context_rects)),
         )
-        st.image(png, use_container_width=True)
-        if chosen.quote:
-            st.caption(f'{t["quote_caption"]}: “{_md(chosen.quote)}”')
-        if chosen.comment:
-            st.caption(f'{t["comment_caption"]}: {_md(chosen.comment)}')
+        st.image(png, width="stretch")
+        if view.quote:
+            st.caption(f'{t["quote_caption"]}: “{_md(view.quote)}”')
+        if view.comment:
+            st.caption(f'{t["comment_caption"]}: {_md(view.comment)}')
 
         located_here = [
             r["finding"] for r in rows
-            if r["file"] is chosen_file and r["finding"].located
+            if r["file"]["uid"] == chosen_file["uid"] and r["finding"].located
         ]
         if located_here:
             st.download_button(

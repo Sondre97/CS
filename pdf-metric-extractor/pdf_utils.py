@@ -56,6 +56,41 @@ def extract_pages(pdf_bytes: bytes) -> list[str]:
         return [page.get_text("text") for page in doc]
 
 
+def extract_rows(pdf_bytes: bytes) -> list[str]:
+    """Per page, text rebuilt row by row from word geometry.
+
+    ``get_text("text")`` walks blocks, and a table cell is often its own
+    block — so a key-figures row comes out as "Verdijustert egenkapital",
+    "50,4" and "45,8" on three separate lines, with no line that carries both
+    the label and its number. Regrouping words by vertical band puts the row
+    back together. Used alongside the plain text, never instead of it: on a
+    two-column page this can join text across the gutter, so it only ever
+    adds candidates for the ranking to sort out.
+    """
+    out = []
+    with doc_from_bytes(pdf_bytes) as doc:
+        for page in doc:
+            words = page.get_text("words")
+            if not words:
+                out.append("")
+                continue
+            heights = sorted(w[3] - w[1] for w in words)
+            tol = max(1.0, 0.5 * heights[len(heights) // 2])
+            bands: list[tuple[float, list]] = []
+            for w in sorted(words, key=lambda w: ((w[1] + w[3]) / 2, w[0])):
+                center = (w[1] + w[3]) / 2
+                if bands and abs(center - bands[-1][0]) <= tol:
+                    bands[-1][1].append(w)
+                else:
+                    bands.append((center, [w]))
+            lines = []
+            for _, band in bands:
+                band.sort(key=lambda w: w[0])
+                lines.append("  ".join(w[4] for w in band))
+            out.append("\n".join(lines))
+    return out
+
+
 def _normalize(text: str, casefold: bool = False) -> str:
     """Strip all space-like chars and unify unicode punctuation."""
     text = unicodedata.normalize("NFKC", text).translate(_CHAR_MAP)
@@ -121,14 +156,43 @@ def _group_search_hits(page: fitz.Page, needle: str, hits):
     return groups
 
 
+def _touching(line_words, a: int, b: int) -> bool:
+    """True when words a and b sit closer than a space — i.e. any gap between
+    them is a thousands separator, not a column gap."""
+    if a == b:
+        return True
+    left, right = (a, b) if a < b else (b, a)
+    gap = line_words[right][0] - line_words[left][2]
+    height = max(line_words[left][3] - line_words[left][1], 1.0)
+    return gap < 0.28 * height
+
+
+def _runs_into_digit(line_words, line_norm, char_owner, target, idx, end) -> bool:
+    """Does the match bump into a digit that belongs to the same number?"""
+    if target[0].isdigit() and idx > 0 and line_norm[idx - 1].isdigit():
+        if _touching(line_words, char_owner[idx - 1], char_owner[idx]):
+            return True
+    if target[-1].isdigit() and end < len(line_norm) and line_norm[end].isdigit():
+        if _touching(line_words, char_owner[end], char_owner[end - 1]):
+            return True
+    return False
+
+
 def _search_words_normalized(page: fitz.Page, needle: str, casefold: bool = False,
                              digit_boundaries: bool = False):
     """Find `needle` in the page word stream after separator normalisation.
 
     Returns a list of rect-groups; each group is the list of word rects that
     together make up one occurrence. With ``digit_boundaries`` a match whose
-    numeric edge touches an adjacent digit is rejected, so value "12" never
+    numeric edge runs into an adjacent digit is rejected, so value "12" never
     pins inside "2012" or "3.125".
+
+    Adjacency is judged geometrically, not from the normalised string: spaces
+    are stripped before matching (so "1 234,5" matches however it is spaced),
+    which would otherwise fuse neighbouring table columns — "50,4    45,8"
+    becomes "50,445,8" and a search for "50,4" would look digit-adjacent. A
+    neighbouring digit only counts when it sits in the same word or less than
+    a space away, i.e. is really part of the same number.
     """
     target = _normalize(needle, casefold=casefold)
     if not target:
@@ -156,13 +220,10 @@ def _search_words_normalized(page: fitz.Page, needle: str, casefold: bool = Fals
             if idx < 0:
                 break
             end = idx + len(target)
-            if digit_boundaries:
-                before = line_norm[idx - 1] if idx > 0 else ""
-                after = line_norm[end] if end < len(line_norm) else ""
-                if (target[0].isdigit() and before.isdigit()) or \
-                   (target[-1].isdigit() and after.isdigit()):
-                    start = idx + 1
-                    continue
+            if digit_boundaries and _runs_into_digit(
+                    line_words, line_norm, char_owner, target, idx, end):
+                start = idx + 1
+                continue
             owners = sorted(set(char_owner[idx:end]))
             rects = [fitz.Rect(line_words[wi][:4]) for wi in owners]
             groups.append(rects)

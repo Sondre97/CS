@@ -196,8 +196,8 @@ def test_multiline_quote_grouped():
 
 
 def test_columns_not_fused():
-    from llm_extractor import _line_number_candidates
-    tokens = [tok for _, tok in _line_number_candidates("Revenue  1 234,5  1 100,2")]
+    from occurrences import _numbers_on
+    tokens = [tok for _, tok in _numbers_on("Revenue  1 234,5  1 100,2")]
     assert tokens == ["1 234,5", "1 100,2"]
 
 
@@ -225,3 +225,94 @@ def test_password_protected_pdf_raises():
     import pytest
     with pytest.raises(Exception):
         extract_pages(encrypted)
+
+
+# --- Multi-occurrence handling (segment figures vs the group total) ----------
+
+
+def make_segment_decoy_report() -> bytes:
+    """A report shaped like a real annual report: the metric appears in the
+    group highlights, again for each business segment with SMALLER numbers,
+    and once more in the group key-figures table. Only the group figure
+    (50,4) is the right answer; the segment rows are written as single text
+    runs, so they extract as one line and score as well-formed table rows."""
+    doc = fitz.open()
+    p = doc.new_page()
+    p.insert_text((72, 90), "Hovedpunkter 2024", fontsize=13)
+    p.insert_text((72, 120),
+                  "Ferds verdijusterte egenkapital var 50,4 milliarder kroner ved utgangen av 2024.",
+                  fontsize=10)
+    p2 = doc.new_page()
+    p2.insert_text((72, 90), "Forretningsområder", fontsize=13)
+    p2.insert_text((72, 120), "Ferd Capital", fontsize=11)
+    p2.insert_text((72, 140), "Verdijustert egenkapital                    34,2", fontsize=10)
+    p2.insert_text((72, 170), "Ferd Eiendom", fontsize=11)
+    p2.insert_text((72, 190), "Verdijustert egenkapital                     5,1", fontsize=10)
+    p3 = doc.new_page()
+    p3.insert_text((72, 90), "Nøkkeltall konsern", fontsize=13)
+    p3.insert_text((72, 130),
+                   "Verdijustert egenkapital                    50,4          45,8", fontsize=10)
+    return doc.tobytes()
+
+
+def test_group_total_beats_segment_figures():
+    """Consensus across the document must win over a well-formed segment row."""
+    pages = extract_pages(make_segment_decoy_report())
+    f = extract_heuristic(pages, ["Verdijustert egenkapital"])[0]
+    assert f.found and f.value == "50,4", f"picked segment figure: {f.value}"
+
+
+def test_alternatives_expose_the_other_places():
+    pages = extract_pages(make_segment_decoy_report())
+    f = extract_heuristic(pages, ["Verdijustert egenkapital"])[0]
+    values = [v for _, v, _ in f.alternatives]
+    assert "34,2" in values and "5,1" in values, values
+    # the runner-up group statement is offered too, so the user can cross-check
+    assert any(p == 0 for p, _, _ in f.alternatives)
+
+
+def test_attach_alternatives_for_llm_findings():
+    from llm_extractor import attach_alternatives
+    pages = extract_pages(make_segment_decoy_report())
+    f = Finding(metric="Verdijustert egenkapital", found=True, value="50,4",
+                page=2, label="Verdijustert egenkapital", confidence="high")
+    attach_alternatives([f], pages)
+    values = [v for _, v, _ in f.alternatives]
+    assert "34,2" in values, values
+    # the model's own pick is not repeated back as an alternative
+    assert (2, "50,4") not in [(p, v) for p, v, _ in f.alternatives]
+
+
+def test_five_year_series_does_not_outvote_current_year():
+    """A history note repeats every year's value; the reporting year must
+    still win on label/position, not lose to an older repeated figure."""
+    doc = fitz.open()
+    p = doc.new_page()
+    p.insert_text((72, 90), "Nøkkeltall konsern", fontsize=13)
+    p.insert_text((72, 120), "Verdijustert egenkapital        50,4        45,8", fontsize=10)
+    p2 = doc.new_page()
+    p2.insert_text((72, 90), "Femårsoversikt", fontsize=13)
+    p2.insert_text((72, 120), "Verdijustert egenkapital  41,1  48,0  43,0  45,8  50,4", fontsize=10)
+    pages = extract_pages(doc.tobytes())
+    f = extract_heuristic(pages, ["Verdijustert egenkapital"])[0]
+    assert f.value == "50,4", f.value
+
+
+def test_table_columns_do_not_fuse_when_locating():
+    """Stripping spaces to match '1 234,5' must not make neighbouring table
+    columns look like one number: '50,4    45,8' fuses to '50,445,8', and a
+    naive digit-boundary check would then reject the real match and send the
+    finding to whatever other page happens to contain the value."""
+    doc = fitz.open()
+    p = doc.new_page()
+    p.insert_text((72, 90), "Hovedpunkter", fontsize=12)
+    p.insert_text((72, 120), "Ferds verdijusterte egenkapital var 50,4 milliarder kroner.", fontsize=10)
+    p2 = doc.new_page()
+    p2.insert_text((72, 90), "Nøkkeltall konsern", fontsize=12)
+    p2.insert_text((72, 130), "Verdijustert egenkapital                    50,4          45,8", fontsize=10)
+    pdf = doc.tobytes()
+
+    f = Finding(metric="Verdijustert egenkapital", found=True, value="50,4",
+                page=1, label="Verdijustert egenkapital")
+    f = locate_finding(pdf, f, 2)
+    assert f.located and f.page == 1, f"landed on page {f.page}, expected the table page"
