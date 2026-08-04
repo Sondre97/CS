@@ -332,14 +332,13 @@ def main() -> None:
             store.pop(key, None)
 
     rows = []
-    stale = False
+    pending = []
     for fl in files:
         entry = store.get(fl["hash"])
+        if entry is None or entry["key"] != result_key(fl):
+            pending.append(fl["name"])
         if entry is None:
-            stale = True
             continue
-        if entry["key"] != result_key(fl):
-            stale = True
         for f in entry["findings"]:
             rows.append({
                 "company": fl["company"], "report": fl["name"],
@@ -347,8 +346,11 @@ def main() -> None:
             })
     if not rows:
         return
-    if stale:
-        st.caption(t["stale_settings"])
+    if pending:
+        # Name them: "press the button" is unhelpful when the user cannot see
+        # which of five reports is missing from the table.
+        st.caption(t["stale_settings"].format(
+            reports=", ".join(_md(n) for n in dict.fromkeys(pending))))
 
     st.subheader(t["results_header"])
 

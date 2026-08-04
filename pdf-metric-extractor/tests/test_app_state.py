@@ -135,7 +135,11 @@ def test_editing_metrics_does_not_blank_the_results():
         assert not at.exception, at.exception
         assert at.dataframe, "results vanished when the metric list was edited"
         assert values_in_table(at) == ["50,4"]
-        assert any("re-extract" in c.value or "på nytt" in c.value for c in at.caption)
+        # captions are markdown-escaped ("Ferd\\-2024\\.pdf"), so compare
+        # against the text as it renders
+        rendered = [c.value.replace("\\", "") for c in at.caption]
+        assert any("Ferd-2024.pdf" in c for c in rendered), \
+            f"stale caption should name the pending report, got {rendered}"
 
 
 def test_language_switch_translates_untouched_default_metrics():
