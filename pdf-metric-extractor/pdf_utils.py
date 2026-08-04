@@ -86,7 +86,17 @@ def extract_rows(pdf_bytes: bytes) -> list[str]:
             lines = []
             for _, band in bands:
                 band.sort(key=lambda w: w[0])
-                lines.append("  ".join(w[4] for w in band))
+                parts = [band[0][4]]
+                for prev, word in zip(band, band[1:]):
+                    # Preserve the difference between a thousands separator and
+                    # a column gap: "67 259" is one number, "67 259  58 156" is
+                    # two. Joining everything with the same separator would
+                    # either fuse the columns or split the number.
+                    gap = word[0] - prev[2]
+                    height = max(prev[3] - prev[1], 1.0)
+                    parts.append(" " if gap < 0.5 * height else "  ")
+                    parts.append(word[4])
+                lines.append("".join(parts))
             out.append("\n".join(lines))
     return out
 
@@ -339,6 +349,33 @@ def locate_finding(pdf_bytes: bytes, finding: Finding, total_pages: int) -> Find
         return finding
 
 
+def merge_rects(rects, gap_ratio: float = 0.6):
+    """Join rects that sit on one line and nearly touch.
+
+    A value like "69 787" is two words, so it comes back as two rectangles;
+    outlining each separately reads as two different highlights rather than
+    one number.
+    """
+    remaining = [tuple(map(float, r)) for r in rects]
+    merged = []
+    while remaining:
+        x0, y0, x1, y1 = remaining.pop(0)
+        changed = True
+        while changed:
+            changed = False
+            for other in list(remaining):
+                ox0, oy0, ox1, oy1 = other
+                same_line = min(y1, oy1) - max(y0, oy0) > 0.4 * min(y1 - y0, oy1 - oy0)
+                gap = max(x0, ox0) - min(x1, ox1)
+                if same_line and gap < gap_ratio * max(y1 - y0, oy1 - oy0):
+                    x0, y0 = min(x0, ox0), min(y0, oy0)
+                    x1, y1 = max(x1, ox1), max(y1, oy1)
+                    remaining.remove(other)
+                    changed = True
+        merged.append((x0, y0, x1, y1))
+    return merged
+
+
 def render_page_with_highlights(
     pdf_bytes: bytes,
     page_index: int,
@@ -366,9 +403,9 @@ def render_page_with_highlights(
             r.normalize()
             return (r.x0, r.y0, r.x1, r.y1)
 
-        value_rects = [to_display(r) for r in value_rects]
-        label_rects = [to_display(r) for r in label_rects]
-        context_rects = [to_display(r) for r in context_rects]
+        value_rects = merge_rects([to_display(r) for r in value_rects])
+        label_rects = merge_rects([to_display(r) for r in label_rects])
+        context_rects = merge_rects([to_display(r) for r in context_rects])
 
     overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)

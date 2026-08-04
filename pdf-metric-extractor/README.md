@@ -13,17 +13,27 @@ table accumulates across runs.
 
 ## Try it
 
-`samples/make_ferd_demo.py` writes five synthetic annual-report stand-ins for
-Ferd (the Norwegian family office, 2021–2025). They are **not** Ferd's
-reports — each page says so — but they carry Ferd's publicly reported
-"verdijustert egenkapital" figures, so uploading all five with
-`Verdijustert egenkapital` as the metric produces the real time series with
-per-year evidence. For real work, run the app on the actual PDFs from
-ferd.no.
+`samples/make_demo_reports.py` writes 14 synthetic annual-report stand-ins for
+three Norwegian investment companies — Ferd (2021–2025), Aker ASA (2021–2025)
+and Sundt (2019–2022). They are **not** those companies' reports; every page
+says so. What is real is the figures: each company's publicly reported
+"verdijustert egenkapital", so uploading all 14 with
+`Verdijustert egenkapital` as the metric produces true time series with
+per-report evidence. For real work, run the app on the actual PDFs.
 
 ```bash
-python samples/make_ferd_demo.py   # writes samples/out/*.pdf
+pip install reportlab                # only needed to build the demo files
+python samples/make_demo_reports.py  # writes samples/out/*.pdf
 ```
+
+The three report the same metric in deliberately different ways, which is
+what the extraction has to survive:
+
+| Company | How the figure is printed | The trap on the page |
+|---|---|---|
+| Ferd | `55,3 milliarder kroner` | prior-year column, segment rows |
+| Aker ASA | `67 259 millioner kroner` | a per-share figure (`905 kroner`) right beside it, and a space that is a thousands separator rather than a column gap |
+| Sundt | `steg … til 16,3 milliarder` | the opening figure of a "from X to Y" clause |
 
 ## Trusting the number
 

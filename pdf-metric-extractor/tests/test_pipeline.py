@@ -316,3 +316,62 @@ def test_table_columns_do_not_fuse_when_locating():
                 page=1, label="Verdijustert egenkapital")
     f = locate_finding(pdf, f, 2)
     assert f.located and f.page == 1, f"landed on page {f.page}, expected the table page"
+
+
+def test_row_rebuild_keeps_thousands_separator_but_splits_columns():
+    """Regrouping words into rows must distinguish a thousands separator from
+    a column gap. Joining every word with the same separator either fuses two
+    columns into one number or splits '67 259' in half — the latter is what
+    made Aker-style figures (millions, space-separated) extract as '67'."""
+    from pdf_utils import extract_rows
+
+    doc = fitz.open()
+    page = doc.new_page()
+    # label, then two right-aligned numeric columns, each a spaced thousand
+    page.insert_text((72, 130), "Verdijustert egenkapital", fontsize=10)
+    page.insert_text((330, 130), "67 259", fontsize=10)
+    page.insert_text((430, 130), "58 156", fontsize=10)
+    row = [l for l in extract_rows(doc.tobytes())[0].splitlines() if "egenkapital" in l][0]
+
+    # one space inside each number, a wider gap between the two columns
+    assert "67 259" in row and "58 156" in row, row
+    assert "  " in row.split("67 259")[1].split("58 156")[0] or \
+           row.count("  ") >= 1, row
+    from occurrences import _numbers_on
+    assert [tok for _, tok in _numbers_on(row)] == ["67 259", "58 156"], row
+
+
+def test_space_separated_millions_extract_and_locate():
+    doc = fitz.open()
+    p1 = doc.new_page()
+    p1.insert_text((72, 90), "Hovedpunkter", fontsize=12)
+    p1.insert_text((72, 120), "Verdijustert egenkapital var 67 259 millioner kroner.", fontsize=10)
+    p1.insert_text((72, 140), "Verdijustert egenkapital per aksje var 905 kroner.", fontsize=10)
+    p2 = doc.new_page()
+    p2.insert_text((72, 90), "Nøkkeltall", fontsize=12)
+    p2.insert_text((72, 130), "Verdijustert egenkapital", fontsize=10)
+    p2.insert_text((330, 130), "67 259", fontsize=10)
+    p2.insert_text((430, 130), "58 156", fontsize=10)
+    pdf = doc.tobytes()
+
+    from pdf_utils import extract_rows
+    f = extract_heuristic(extract_pages(pdf), ["Verdijustert egenkapital"],
+                          row_texts=extract_rows(pdf))[0]
+    f = locate_finding(pdf, f, 2)
+    assert f.value.replace(" ", " ") == "67 259", f.value
+    assert f.located, "space-separated millions must pin to the page"
+
+
+def test_multiword_value_draws_one_box():
+    """'69 787' is two words; outlining each separately reads as two
+    highlights instead of one number."""
+    from pdf_utils import merge_rects
+
+    merged = merge_rects([(100.0, 100.0, 120.0, 112.0), (123.0, 100.0, 150.0, 112.0)])
+    assert merged == [(100.0, 100.0, 150.0, 112.0)], merged
+
+    apart = merge_rects([(100.0, 100.0, 120.0, 112.0), (300.0, 100.0, 330.0, 112.0)])
+    assert len(apart) == 2, apart
+
+    lines = merge_rects([(100.0, 100.0, 120.0, 112.0), (100.0, 130.0, 120.0, 142.0)])
+    assert len(lines) == 2, lines
